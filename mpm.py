@@ -1,5 +1,18 @@
-import numpy as np;
-from enum import Enum;
+import numpy as np
+import matplotlib.pyplot as plt
+
+def running_mpm(signal, sampling_rate, window_size = 2048, window_increment = 512, k = 0.9):
+    freq_array = []
+    breakpoint = -1;
+    for start in range(0, signal.size, window_increment):
+        window = signal[start : start + window_size]
+        freq_array.append(mpm(window, sampling_rate, k))
+        if ((start - breakpoint) / signal.size > 0.1):
+            breakpoint = start
+        print("{}% complete\n".format(100 * start / signal.size))
+    plt.plot(freq_array)
+    plt.show()
+    return freq_array
 
 def mpm(signal, sampling_rate, k = 0.9):
     """
@@ -89,16 +102,18 @@ def find_positive_intervals(signal):
     # special cases
     if pos_slope_zeros[0] > neg_slope_zeros[0]:
         # the first positive slope was before signal began, so skip first neg slope.
+        extra_interval = None
         neg_slope_zeros = neg_slope_zeros[1:]
     if pos_slope_zeros[-1] > neg_slope_zeros[-1]:
-        # the last negative slope was after the signal ended, so skip last pos slope.
-        interval = (pos_slope_zeros[-1], signal.size)
-        intervals.append(interval)
+        # the last negative slope was after the signal ended, so make an extra interval
+        extra_interval = (pos_slope_zeros[-1], signal.size)
         pos_slope_zeros = pos_slope_zeros[:-1]
     # at this point pos and neg slope zeros should be the same size
     assert(neg_slope_zeros.size == pos_slope_zeros.size)
     # zip into intervals
-    intervals += list(zip(pos_slope_zeros.ravel(), neg_slope_zeros.ravel()))
+    intervals = list(zip(pos_slope_zeros.ravel(), neg_slope_zeros.ravel()))
+    if (extra_interval is not None):
+        intervals.append(extra_interval)
     return intervals
 
 def find_key_maxima(signal, positive_intervals):
@@ -114,7 +129,6 @@ def find_key_maxima(signal, positive_intervals):
     key_maxima_indices = [a + np.argmax(signal[a:b]) for a,b in positive_intervals]
     key_maxima = signal[key_maxima_indices]
     return np.vstack((key_maxima, key_maxima_indices))
-    #return list(zip(key_maxima_indices, key_maxima))
 
 def find_pitch(key_maxima, sampling_rate, k):
     """
@@ -139,4 +153,3 @@ def find_pitch(key_maxima, sampling_rate, k):
     else:
         # if all else fails, return null
         return None
-    # TODO: implement something more graceful here.

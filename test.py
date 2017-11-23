@@ -2,6 +2,8 @@ import scipy.io.wavfile
 import numpy as np
 import mpm
 
+wav_audio = 'audio/{}.wav'
+
 def get_mono_wav(filename):
     # open the wav file
     try:
@@ -38,8 +40,25 @@ def test_sum_squares():
     actual = mpm.sum_squares(test_signal)
     print('expected: {}\ngot: {}\n'.format(expected, actual))
 
+def test_piano():
+    print('piano test')
+    sampling_rate, signal = get_mono_wav(wav_audio.format('A Tone (~440Hz)'))
+    expected = 440
+    actual = mpm.mpm(signal, sampling_rate)
+    print('expected: {}\ngot: {}\n'.format(expected, actual))
+    sampling_rate, signal = get_mono_wav(wav_audio.format('Middle C'))
+    expected = 261.63
+    actual = mpm.mpm(signal, sampling_rate)
+    print('expected: {}\ngot: {}\n'.format(expected, actual))
+
+def test_running_mpm():
+    sampling_rate, signal = get_mono_wav(wav_audio.format('Middle C'))
+    mpm.running_mpm(signal, sampling_rate, window_size=4096, window_increment=1024)
+
 if __name__ == '__main__':
     test_sine_wave(440)
     test_sine_wave(200)
     test_acf()
     test_sum_squares()
+    #test_piano()
+    test_running_mpm()
