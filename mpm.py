@@ -1,18 +1,46 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import note_detection
 
 def running_mpm(signal, sampling_rate, window_size = 2048, window_increment = 512, k = 0.9):
     freq_array = []
+    note_active = []
+    active_volume = None
     breakpoint = -1;
+    envelope = note_detection.get_envelope(signal)
     for start in range(0, signal.size, window_increment):
+        # do pitch detection
         window = signal[start : start + window_size]
         freq_array.append(mpm(window, sampling_rate, k))
-        if ((start - breakpoint) / signal.size > 0.1):
-            breakpoint = start
-        print("{}% complete\n".format(100 * start / signal.size))
-    plt.plot(freq_array)
-    plt.show()
-    return freq_array
+        # do note detection
+        envelope_window = envelope[start : start + window_size]
+        if (active_volume != None):
+            if (note_detection.threshold_note_end(envelope_window, active_volume, 0.3, 0.05 * sampling_rate)):
+                # the note ends
+                active_volume = None
+                note_active.append(False)
+            else:
+                # the note continues
+                note_active.append(True)
+        else:
+            note_on, volume = note_detection.threshold_note_start(envelope_window, 0.7, 0.05 * sampling_rate)
+            if (note_on):
+                # the note starts
+                active_volume = volume
+                note_active.append(True)
+            else:
+                # the note continues to be off
+                note_active.append(False)
+    # calculate times
+    time = np.arange(0, signal.size / sampling_rate, window_increment / sampling_rate) + window_size / sampling_rate
+    frequency = np.array(freq_array, dtype='float')
+    note_active = np.array(note_active, dtype=bool)
+    # rudimentary: TODO fix this
+    note_starts = np.argwhere((~note_active[:-1] &  note_active[1:])) + 1
+    note_ends   = np.argwhere(( note_active[:-1] & ~note_active[1:])) + 1
+    if (note_starts.size != note_ends.size):
+        assert(False)
+    note_bounds = zip(note_starts, note_ends)
+    return (time, frequency, note_bounds)
 
 def mpm(signal, sampling_rate, k = 0.9):
     """
@@ -151,5 +179,5 @@ def find_pitch(key_maxima, sampling_rate, k):
         frequency = sampling_rate / float(delta_index)
         return frequency
     else:
-        # if all else fails, return null
-        return None
+        # if all else fails, return nan
+        return np.nan

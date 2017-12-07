@@ -1,6 +1,9 @@
 import scipy.io.wavfile
 import numpy as np
 import mpm
+import matplotlib.pyplot as plt
+import tools
+import note_detection as transcribe
 
 wav_audio = 'audio/{}.wav'
 
@@ -52,8 +55,31 @@ def test_piano():
     print('expected: {}\ngot: {}\n'.format(expected, actual))
 
 def test_running_mpm():
-    sampling_rate, signal = get_mono_wav(wav_audio.format('Middle C'))
-    mpm.running_mpm(signal, sampling_rate, window_size=4096, window_increment=1024)
+    sampling_rate, signal = get_mono_wav(wav_audio.format('Simple Melody (singing, CGFGFEDCD)'))
+    t, f, n = mpm.running_mpm(signal, sampling_rate, window_size=4096, window_increment=1024, k=0.9)
+    tools.get_note_representation(t, f, n)
+    t, f = tools.clean_data(t, f)
+    m = tools.frequency_to_midi(f)
+    print("\nsinging")
+    plt.plot(t, m, 'bo')
+    plt.show()
+    """
+    sampling_rate, signal = get_mono_wav(wav_audio.format('Simple Melody (piano, CGFGFEDCD)'))
+    t, f = mpm.running_mpm(signal, sampling_rate, window_size=4096, window_increment=1024, k=0.9)
+    tools.clean_data(t, f)
+    m = tools.frequency_to_midi(f)
+    print("\npiano")
+    tools.get_note_representation(t, f)
+    plt.plot(t, m, 'ro')
+    plt.plot(t, n, 'ro')
+    plt.show()
+    """
+
+def test_note_detection():
+    sampling_rate, signal = get_mono_wav(wav_audio.format('Simple Melody (singing, CGFGFEDCD)'))
+    transcribe.moving_window_pitch_transcriber(signal, sampling_rate)
+    transcription = transcribe.threshold_transcriber(signal, sampling_rate)
+    tools.visualize_transcription(transcription, signal, sampling_rate)
 
 if __name__ == '__main__':
     test_sine_wave(440)
@@ -61,4 +87,5 @@ if __name__ == '__main__':
     test_acf()
     test_sum_squares()
     #test_piano()
-    test_running_mpm()
+    #test_running_mpm()
+    test_note_detection()
