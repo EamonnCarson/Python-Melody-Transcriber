@@ -3,6 +3,7 @@ import scipy.signal as sig
 import mpm
 import tools
 import matplotlib.pyplot as plt
+import soundfile
 
 # GENERAL UTILITIES
 
@@ -38,7 +39,6 @@ def get_processed_envelope(signal, sampling_rate, compression_alpha=2, window_si
     plt.show()
     return envelope
 
-
 def get_note_amplitude_statistics(envelope, notes):
     """
     given an amplitude envelope and a list of notes' (start, end) return
@@ -55,22 +55,65 @@ def get_note_amplitude_statistics(envelope, notes):
         stddevs.append(np.std(note_window))
     return means, stddevs
 
+def get_pitch(signal, sampling_rate, window_size=2048, window_increment=512, k=0.9):
+    assert(window_size % window_increment == 0)
+    frequencies = []
+    for offset in range(0, window_size, window_increment):
+        borders = np.arange(offset, signal.size, window_size)
+        windows = np.split(signal, borders)
+        for window in windows[1:]: # skip the first window because it's non-standard.
+            frequencies.append(mpm.mpm(window, sampling_rate, k))
+    frequencies = np.array(frequencies)
+    return np.nanmean(frequencies)
+
+def get_transcription(signal, sampling_rate, note_intervals, k=0.9):
+    """
+    Given a signal and list of note intervals (notes) outputs a list of Note objects
+    :param signal:
+    :param sampling_rate:
+    :param note_intervals:
+    :param k:
+    :return: a list of note objects representing a transcription
+    """
+    envelope = get_hilbert_envelope(signal)
+    transcription = []
+    for note_interval in note_intervals:
+        # get timing
+        note_start_time = note_interval[0] / sampling_rate
+        note_duration = (note_interval[1] - note_interval[0]) / sampling_rate
+        # get amplitude statistics
+        note_amplitude_window = envelope[note_interval[0] : note_interval[1]]
+        amplitude = np.mean(note_amplitude_window)
+        amplitude_vibrato = np.std(note_amplitude_window)
+        # get frequency statistics
+        note_signal_window = signal[note_interval[0] : note_interval[1]]
+        frequency = get_pitch(note_signal_window, sampling_rate, k=k)
+        midi = tools.frequency_to_midi(frequency)
+        # record note
+        note = tools.Note(midi, amplitude, note_start_time, note_duration, 0, amplitude_vibrato)
+        transcription.append(note)
+    return transcription
+
 def moving_average(data, window_size):
     cumsum = np.cumsum(data)
     return (cumsum[window_size:] - cumsum[:-window_size]) / float(window_size)
 
-def compress(envelope, alpha):
+def compress(envelope, threshold, alpha):
     """
     compresses (decreases the dynamic range) of the envelope
+
     :param envelope: envelope of a signal
     :param alpha: higher values decrease the dynamic range, 1 does nothing
     :return:
     """
     # first normalize the values to the range [0, 1]
-    envelope = envelope / np.max(envelope)
-    # the compress
-    compressed = 1 - (1 - envelope) ** alpha
-    return compressed
+    maximum = np.max(envelope)
+    if np.max(envelope) > threshold:
+        # the compression
+        envelope = envelope / max
+        return 1 - (1 - envelope) ** alpha
+    else:
+        return np.zeros(envelope.shape)
 
 def local_compress(envelope, threshold, alpha, window_size):
     """
@@ -132,14 +175,39 @@ def moving_window_pitch_transcriber(signal, sampling_rate, window_size = 2048, w
 
 # THRESHOLD METHODS
 
+def threshold_transcriber(signal, sampling_rate, k=0.9):
+    # Constants (for testing)
+    THRESHOLD = 0.5
+    SUSTAIN = 0.1 * sampling_rate # minimum note length is 0.1 seconds
+
+    # get a list of notes
+    note_intervals = []
+    envelope = get_processed_envelope(signal, sampling_rate)
+    above_threshold = envelope >= THRESHOLD
+    streak_boundaries = np.zeros(envelope.shape, dtype=bool)
+    streak_boundaries[1:] |= ~above_threshold[:-1] &  above_threshold[1:] # false then true
+    streak_boundaries[1:] |=  above_threshold[:-1] & ~above_threshold[1:] # true then false
+    streak_boundaries[0] = np.True_
+    split_indices = np.where(streak_boundaries)[0]
+    streaks = np.split(envelope, split_indices)
+    streaks.pop()
+    for start_index, streak in zip(split_indices, streaks[1:]): # first streak is always [] so [1:]
+        if (streak.size > SUSTAIN and streak[0]):
+            # there is a note
+            end_index = start_index + streak.size
+            note_intervals.append( (start_index, end_index) )
+
+    # return transcription
+    return get_transcription(signal, sampling_rate, note_intervals, k)
+
 # TODO: totally does not work
-def threshold_transcriber(signal, sampling_rate, window_size = 2048, window_increment = 512, k = 0.9):
+def windowed_threshold_transcriber(signal, sampling_rate, window_size = 2048, window_increment = 512, k = 0.9):
     # Constants
-    MINIMUM_THRESHOLD = 0.1
-    START_THRESHOLD = 0.7
-    START_SUSTAIN = sampling_rate * 0.3 # 0.3 seconds
-    END_THRESHOLD = 0.3
-    END_SUSTAIN = sampling_rate * 0.1 # 0.1 seconds
+    MINIMUM_THRESHOLD = 0.5
+    START_THRESHOLD = 0.5
+    START_SUSTAIN = window_size * 3 / 4
+    END_THRESHOLD = 0.4
+    END_SUSTAIN = window_size / 2
     # do note detection
     envelope = get_processed_envelope(signal, sampling_rate)
     notes = threshold_note_detection(envelope,

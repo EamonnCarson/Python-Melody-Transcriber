@@ -77,7 +77,6 @@ def test_running_mpm():
 
 def test_note_detection():
     sampling_rate, signal = get_mono_wav(wav_audio.format('Simple Melody (singing, CGFGFEDCD)'))
-    transcribe.moving_window_pitch_transcriber(signal, sampling_rate)
     transcription = transcribe.threshold_transcriber(signal, sampling_rate)
     tools.visualize_transcription(transcription, signal, sampling_rate)
 
