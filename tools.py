@@ -21,10 +21,10 @@ class Note:
         self.amplitude_vibrato = amplitude_vibrato
 
     def __str__(self):
-        return self.str_template.format(self.midi,
-                                        self.amplitude,
-                                        self.note_start_time,
-                                        self.duration)
+        return self.str_template.format(midi=self.midi,
+                                        amplitude=self.amplitude,
+                                        note_start_time=self.note_start_time,
+                                        duration=self.duration)
 
 def visualize_transcription(transcription, signal, sampling_rate):
     """
@@ -59,6 +59,8 @@ def visualize_transcription(transcription, signal, sampling_rate):
         note_edges.append(note.note_start_time + note.duration + delta)
         midi.append(0)
         amplitude.append(0)
+        # print note
+        print(note)
     # append end
     note_edges.append(max_time)
     midi.append(0)

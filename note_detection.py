@@ -34,7 +34,7 @@ def get_processed_envelope(signal, sampling_rate, compression_alpha=2, window_si
 
     # compress envelope and change the range to [0, 1]
     # envelope = compress(envelope, compression_alpha)
-    envelope = local_compress(envelope, 0.2, compression_alpha, window_size * 4)
+    envelope = local_compress(envelope, 0.1, compression_alpha, window_size * 4)
     plt.plot(envelope)
     plt.show()
     return envelope
@@ -189,10 +189,10 @@ def threshold_transcriber(signal, sampling_rate, k=0.9):
     streak_boundaries[1:] |=  above_threshold[:-1] & ~above_threshold[1:] # true then false
     streak_boundaries[0] = np.True_
     split_indices = np.where(streak_boundaries)[0]
-    streaks = np.split(envelope, split_indices)
+    streaks = np.split(above_threshold, split_indices)
     streaks.pop()
     for start_index, streak in zip(split_indices, streaks[1:]): # first streak is always [] so [1:]
-        if (streak.size > SUSTAIN and streak[0]):
+        if streak.size > SUSTAIN and streak[0] != 0:
             # there is a note
             end_index = start_index + streak.size
             note_intervals.append( (start_index, end_index) )

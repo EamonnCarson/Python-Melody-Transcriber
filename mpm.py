@@ -128,6 +128,9 @@ def find_positive_intervals(signal):
     neg_slope_zeros = (np.argwhere(boundaries == -1) + 1).ravel()
     pos_slope_zeros = (np.argwhere(boundaries == 1) + 1).ravel()
     # special cases
+    if len(pos_slope_zeros) <= 1 or len(neg_slope_zeros) <= 1:
+        # too little data, lets abort
+        return intervals
     if pos_slope_zeros[0] > neg_slope_zeros[0]:
         # the first positive slope was before signal began, so skip first neg slope.
         extra_interval = None
@@ -167,6 +170,8 @@ def find_pitch(key_maxima, sampling_rate, k):
     """
     MAXIMA_VALUES = 0
     MAXIMA_INDICES = 1
+    if key_maxima.size == 0:
+        return np.nan
     argmax = np.argmax(key_maxima[MAXIMA_VALUES])
     maximum = key_maxima[MAXIMA_VALUES, argmax]
     maximum_index = key_maxima[MAXIMA_INDICES, argmax]
