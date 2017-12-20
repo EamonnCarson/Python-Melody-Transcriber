@@ -76,9 +76,10 @@ def test_running_mpm():
     """
 
 def test_note_detection():
-    sampling_rate, signal = get_mono_wav(wav_audio.format('project_melody_1'))
+    sampling_rate, signal = get_mono_wav(wav_audio.format('project_melody_2'))
     transcription = transcribe.threshold_transcriber(signal, sampling_rate)
     tools.visualize_transcription(transcription, signal, sampling_rate)
+    tools.transcription_to_max_dict('test_transcription.json', transcription)
 
 if __name__ == '__main__':
     test_sine_wave(440)

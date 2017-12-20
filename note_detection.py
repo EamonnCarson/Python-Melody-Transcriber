@@ -35,8 +35,8 @@ def get_processed_envelope(signal, sampling_rate, compression_alpha=2, window_si
     # compress envelope and change the range to [0, 1]
     # envelope = compress(envelope, compression_alpha)
     envelope = local_compress(envelope, 0.1, compression_alpha, window_size * 4)
-    plt.plot(envelope)
-    plt.show()
+    # plt.plot(envelope)
+    # plt.show()
     return envelope
 
 def get_note_amplitude_statistics(envelope, notes):
@@ -77,6 +77,7 @@ def get_transcription(signal, sampling_rate, note_intervals, k=0.9):
     """
     envelope = get_hilbert_envelope(signal)
     transcription = []
+    # initial transcription
     for note_interval in note_intervals:
         # get timing
         note_start_time = note_interval[0] / sampling_rate
@@ -92,6 +93,14 @@ def get_transcription(signal, sampling_rate, note_intervals, k=0.9):
         # record note
         note = tools.Note(midi, amplitude, note_start_time, note_duration, 0, amplitude_vibrato)
         transcription.append(note)
+    # adjust transcription values
+    if len(transcription) == 0: return transcription
+    first_note_start_time = transcription[0].note_start_time
+    max_amplitude = max((note.amplitude for note in transcription))
+    if max_amplitude == 0: max_amplitude = 1
+    for note in transcription:
+        note.note_start_time = note.note_start_time - first_note_start_time
+        note.amplitude = note.amplitude / max_amplitude
     return transcription
 
 def moving_average(data, window_size):

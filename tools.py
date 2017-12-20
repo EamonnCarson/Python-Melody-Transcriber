@@ -2,9 +2,11 @@ import numpy as np
 import scipy.signal as sig
 import scipy.io.wavfile
 import matplotlib.pyplot as plt
+import json
+
+NOTE_STRING_TEMPLATE = 'Play note {midi} at volume {amplitude} at time {note_start_time} for duration {duration}.'
 
 class Note:
-    str_template = 'Play note {midi} at volume {amplitude} at time {note_start_time} for duration {duration}.'
 
     def __init__(self,
                  midi=None,
@@ -21,10 +23,10 @@ class Note:
         self.amplitude_vibrato = amplitude_vibrato
 
     def __str__(self):
-        return self.str_template.format(midi=self.midi,
-                                        amplitude=self.amplitude,
-                                        note_start_time=self.note_start_time,
-                                        duration=self.duration)
+        return NOTE_STRING_TEMPLATE.format(midi=self.midi,
+                                           amplitude=self.amplitude,
+                                           note_start_time=self.note_start_time,
+                                           duration=self.duration)
 
 def visualize_transcription(transcription, signal, sampling_rate):
     """
@@ -123,3 +125,9 @@ def frequency_to_midi(frequency):
     midi_array = 69 + 12 * np.log2(frequency / 440.)
     return midi_array
 
+def transcription_to_max_dict(filename, transcription):
+    f = open(filename, 'w', encoding="utf-8")
+    dict_transcription = [note.__dict__ for note in transcription]
+    wrapper = {'note_sequence' : dict_transcription}
+    json.dump(wrapper, f, separators=(',', ':'), indent=4)
+    f.close()
